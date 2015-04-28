@@ -31,6 +31,13 @@ void JGDebugOpen()
 	#endif
 }
 
+void JGSIGVTALRMRec()
+{
+	#ifdef DEBUG
+		printf("SIGVTALRM Received!\n");
+	#endif	
+}
+
 /* 调度程序 */
 void scheduler()
 {
@@ -183,6 +190,7 @@ void sig_handler(int sig,siginfo_t *info,void *notused)
 	switch (sig) {
 		case SIGVTALRM: /* 到达计时器所设置的计时间隔 */
 			scheduler();
+			JGSIGVTALRMRec();
 			return;
 		case SIGCHLD: /* 子进程结束时传送给父进程的信号 */
 			ret = waitpid(-1,&status,WNOHANG);
@@ -291,9 +299,9 @@ void do_deq(struct jobcmd deqcmd)
 	struct waitqueue *p,*prev,*select,*selectprev;
 	deqid=atoi(deqcmd.data);
 
-#ifdef DEBUG
-	printf("deq jid %d\n",deqid);
-#endif
+	#ifdef DEBUG
+		printf("deq jid %d\n",deqid);
+	#endif
 
 	/*current jodid==deqid,终止当前作业*/
 	if (current && current->job->jid ==deqid){
