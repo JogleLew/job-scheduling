@@ -35,14 +35,14 @@ int main(int argc,char *argv[])
 	{
 		while(c=*++argv[0])
 			switch(c)
-		{
-			case 'p':p=atoi(*(++argv));
-			argc--;
-			break;
-			default:
-				printf("Illegal option %c\n",c);
-				return 1;
-		}
+			{
+				case 'p':p=atoi(*(++argv));
+				argc--;
+				break;
+				default:
+					printf("Illegal option %c\n",c);
+					return 1;
+			}
 	}
 
 	if(p<0||p>3)

@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <time.h>
 #include "job.h"
+#define DEBUG
 
 int jobid=0;
 int siginfo=1;
@@ -18,13 +19,26 @@ int globalfd;
 struct waitqueue *head=NULL;
 struct waitqueue *next=NULL,*current =NULL;
 
+void JGsetZero(struct jobcmd *p, int len)
+{
+	memset(p, 0, len);
+}
+
+void JGDebugOpen()
+{
+	#ifdef DEBUG
+		printf("DEBUG IS OPEN!\n");
+	#endif
+}
+
 /* 调度程序 */
 void scheduler()
 {
 	struct jobinfo *newjob=NULL;
 	struct jobcmd cmd;
 	int  count = 0;
-	bzero(&cmd,DATALEN);
+	/*bzero(&cmd,DATALEN);*/ //JG: bzero is an old expression.
+	JGsetZero(&cmd,DATALEN); //JG: instead of bzero
 	if((count=read(fifo,&cmd,DATALEN))<0)
 		error_sys("read fifo failed");
 #ifdef DEBUG
@@ -167,24 +181,24 @@ void sig_handler(int sig,siginfo_t *info,void *notused)
 	int ret;
 
 	switch (sig) {
-case SIGVTALRM: /* 到达计时器所设置的计时间隔 */
-	scheduler();
-	return;
-case SIGCHLD: /* 子进程结束时传送给父进程的信号 */
-	ret = waitpid(-1,&status,WNOHANG);
-	if (ret == 0)
-		return;
-	if(WIFEXITED(status)){
-		current->job->state = DONE;
-		printf("normal termation, exit status = %d\n",WEXITSTATUS(status));
-	}else if (WIFSIGNALED(status)){
-		printf("abnormal termation, signal number = %d\n",WTERMSIG(status));
-	}else if (WIFSTOPPED(status)){
-		printf("child stopped, signal number = %d\n",WSTOPSIG(status));
-	}
-	return;
-	default:
-		return;
+		case SIGVTALRM: /* 到达计时器所设置的计时间隔 */
+			scheduler();
+			return;
+		case SIGCHLD: /* 子进程结束时传送给父进程的信号 */
+			ret = waitpid(-1,&status,WNOHANG);
+			if (ret == 0)
+				return;
+			if(WIFEXITED(status)){
+				current->job->state = DONE;
+				printf("normal termination, exit status = %d\n",WEXITSTATUS(status));
+			}else if (WIFSIGNALED(status)){
+				printf("abnormal termination, signal number = %d\n",WTERMSIG(status));
+			}else if (WIFSTOPPED(status)){
+				printf("child stopped, signal number = %d\n",WSTOPSIG(status));
+			}
+			return;
+		default:
+			return;
 	}
 }
 
@@ -371,13 +385,14 @@ int main()
 	struct stat statbuf;
 	struct sigaction newact,oldact1,oldact2;
 
+	JGDebugOpen();
 	if(stat("/tmp/server",&statbuf)==0){
 		/* 如果FIFO文件存在,删掉 */
 		if(remove("/tmp/server")<0)
 			error_sys("remove failed");
 	}
 
-	if(mkfifo("/tmp/server",0666)<0)
+	if(mkfifo("/tmp/server",0666)<0) //0666 means -rw-rw-rw-
 		error_sys("mkfifo failed");
 	/* 在非阻塞模式下打开FIFO */
 	if((fifo=open("/tmp/server",O_RDONLY|O_NONBLOCK))<0)
