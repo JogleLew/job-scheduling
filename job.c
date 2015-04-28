@@ -38,6 +38,39 @@ void JGSIGVTALRMRec()
 	#endif	
 }
 
+void JGDebugTask3_1()
+{
+	printf("Reading whether other process send command!\n");
+}
+
+void JGDebugTask3_2()
+{
+	#ifdef DEBUG
+		printf("Update jobs in wait queue!\n");
+	#endif
+}
+
+void JGDebugTask3_3()
+{
+	#ifdef DEBUG
+		printf("Execute enq!\n");
+	#endif
+}
+
+void JGDebugTask3_4()
+{
+	#ifdef DEBUG
+		printf("Execute deq!\n");
+	#endif
+}
+
+void JGDebugTask3_5()
+{
+	#ifdef DEBUG
+		printf("Execute stat!\n");
+	#endif
+}
+
 /* 调度程序 */
 void scheduler()
 {
@@ -48,26 +81,30 @@ void scheduler()
 	JGsetZero(&cmd,DATALEN); //JG: instead of bzero
 	if((count=read(fifo,&cmd,DATALEN))<0)
 		error_sys("read fifo failed");
-#ifdef DEBUG
-
-	if(count){
-		printf("cmd cmdtype\t%d\ncmd defpri\t%d\ncmd data\t%s\n",cmd.type,cmd.defpri,cmd.data);
-	}
-	else
-		printf("no data read\n");
-#endif
+	#ifdef DEBUG
+		JGDebugTask3_1();
+		if(count){
+			printf("cmd cmdtype\t%d\ncmd defpri\t%d\ncmd data\t%s\n",cmd.type,cmd.defpri,cmd.data);
+		}
+		else
+			printf("no data read\n");
+	#endif
 
 	/* 更新等待队列中的作业 */
+	JGDebugTask3_2();
 	updateall();
 
 	switch(cmd.type){
 	case ENQ:
+		JGDebugTask3_3();
 		do_enq(newjob,cmd);
 		break;
 	case DEQ:
+		JGDebugTask3_4();
 		do_deq(cmd);
 		break;
 	case STAT:
+		JGDebugTask3_5();
 		do_stat(cmd);
 		break;
 	default:
@@ -190,7 +227,7 @@ void sig_handler(int sig,siginfo_t *info,void *notused)
 	switch (sig) {
 		case SIGVTALRM: /* 到达计时器所设置的计时间隔 */
 			scheduler();
-			JGSIGVTALRMRec();
+			JGDebugTask2();
 			return;
 		case SIGCHLD: /* 子进程结束时传送给父进程的信号 */
 			ret = waitpid(-1,&status,WNOHANG);
@@ -393,7 +430,7 @@ int main()
 	struct stat statbuf;
 	struct sigaction newact,oldact1,oldact2;
 
-	JGDebugOpen();
+	JGDebugTask1();
 	if(stat("/tmp/server",&statbuf)==0){
 		/* 如果FIFO文件存在,删掉 */
 		if(remove("/tmp/server")<0)
