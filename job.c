@@ -9,7 +9,7 @@
 #include <fcntl.h>
 #include <time.h>
 #include "job.h"
-#define DEBUG
+//#define DEBUG
 
 int jobid=0;
 int siginfo=1;
@@ -24,14 +24,14 @@ void JGsetZero(struct jobcmd *p, int len)
 	memset(p, 0, len);
 }
 
-void JGDebugOpen()
+void JGDebugTask1()
 {
 	#ifdef DEBUG
 		printf("DEBUG IS OPEN!\n");
 	#endif
 }
 
-void JGSIGVTALRMRec()
+void JGDebugTask2()
 {
 	#ifdef DEBUG
 		printf("SIGVTALRM Received!\n");
@@ -68,6 +68,20 @@ void JGDebugTask3_5()
 {
 	#ifdef DEBUG
 		printf("Execute stat!\n");
+	#endif
+}
+
+void JGDebugTask3_6()
+{
+	#ifdef DEBUG
+		printf("Select which job to run next!\n");
+	#endif
+}
+
+void JGDebugTask3_7()
+{
+	#ifdef DEBUG
+		printf("Switch to the next job!\n");
 	#endif
 }
 
@@ -112,8 +126,10 @@ void scheduler()
 	}
 
 	/* 选择高优先级作业 */
+	JGDebugTask3_6();
 	next=jobselect();
 	/* 作业切换 */
+	JGDebugTask3_7();
 	jobswitch();
 }
 
