@@ -134,6 +134,28 @@ void JGDebugTask7_4()
 	#endif
 }
 
+void JGDebugTask8(struct waitqueue *select)
+{
+	char timebuf[BUFLEN];
+	#ifdef DEBUG
+		printf("Job selected:\n");
+		if (select == NULL){
+			printf("NULL\n");
+			return;
+		}
+		printf("JOBID\tPID\tOWNER\tRUNTIME\tWAITTIME\tCREATTIME\t\tSTATE\n");
+		strcpy(timebuf,ctime(&(select->job->create_time)));
+		timebuf[strlen(timebuf)-1]='\0';
+		printf("%d\t%d\t%d\t%d\t%d\t%s\t\n",
+			select->job->jid,
+			select->job->pid,
+			select->job->ownerid,
+			select->job->run_time,
+			select->job->wait_time,
+			timebuf);
+	#endif
+}
+
 /* 调度程序 */
 void scheduler()
 {
@@ -226,6 +248,7 @@ struct waitqueue* jobselect()
 			if (select == selectprev)
 				head = NULL;
 	}
+	JGDebugTask8(select);
 	return select;
 }
 
