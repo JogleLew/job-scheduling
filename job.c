@@ -16,6 +16,7 @@ int siginfo=1;
 int fifo;
 int globalfd;
 
+struct jobcmd JGNullcmd;
 struct waitqueue *head=NULL;
 struct waitqueue *next=NULL,*current =NULL;
 
@@ -85,40 +86,51 @@ void JGDebugTask3_7()
 	#endif
 }
 
-void JGDebugTask6_1(struct waitqueue *p)
+void JGDebugTask6_1()
 {
-	struct waitqueue *current;
-	struct jobinfo *currentJob;
 	#ifdef DEBUG
 		printf("Before update wait queue:\n");
-		current = p;
-		while (current != NULL){
-			currentJob = current->job;
-			printf("jid: %d pid: %d defpri: %d curpri: %d ", 
-				currentJob->jid, currentJob->pid, currentJob->defpri, currentJob->curpri);
-			printf("ownerid: %d waittime: %d runtime: %d jobstate: %d\n", 
-				currentJob->ownerid, currentJob->wait_time, currentJob->run_time, currentJob->state);
-			current = current->next;
-		}
+		do_stat(JGNullcmd);
 	#endif
 }
 
-void JGDebugTask6_2(struct waitqueue *p)
+void JGDebugTask6_2()
 {
-	struct waitqueue *current;
-	struct jobinfo *currentJob;
 	#ifdef DEBUG
 		printf("After update wait queue:\n");
-		current = p;
-		while (current != NULL){
-			currentJob = current->job;
-			printf("jid: %d pid: %d defpri: %d curpri: %d ", 
-				currentJob->jid, currentJob->pid, currentJob->defpri, currentJob->curpri);
-			printf("ownerid: %d waittime: %d runtime: %d jobstate: %d\n", 
-				currentJob->ownerid, currentJob->wait_time, currentJob->run_time, currentJob->state);
-			current = current->next;
-		}
-		printf("(jobstate: READY = 0, RUNNING = 1, DONE = 2)\n");
+		do_stat(JGNullcmd);
+	#endif
+}
+
+void JGDebugTask7_1()
+{
+	#ifdef DEBUG
+		printf("Before enq:\n");
+		do_stat(JGNullcmd);
+	#endif
+}
+
+void JGDebugTask7_2()
+{
+	#ifdef DEBUG
+		printf("After enq:\n");
+		do_stat(JGNullcmd);
+	#endif
+}
+
+void JGDebugTask7_3()
+{
+	#ifdef DEBUG
+		printf("Before deq:\n");
+		do_stat(JGNullcmd);
+	#endif
+}
+
+void JGDebugTask7_4()
+{
+	#ifdef DEBUG
+		printf("After deq:\n");
+		do_stat(JGNullcmd);
 	#endif
 }
 
@@ -183,7 +195,7 @@ void updateall()
 	if(current)
 		current->job->run_time += 1; /* 加1代表1000ms */
 
-	JGDebugTask6_1(head);
+	JGDebugTask6_1();
 	/* 更新作业等待时间及优先级 */
 	for(p = head; p != NULL; p = p->next){
 		p->job->wait_time += 1000;
@@ -192,7 +204,7 @@ void updateall()
 			p->job->wait_time = 0;
 		}
 	}
-	JGDebugTask6_2(head);
+	JGDebugTask6_2();
 }
 
 struct waitqueue* jobselect()
@@ -347,6 +359,7 @@ void do_enq(struct jobinfo *newjob,struct jobcmd enqcmd)
 
 #endif
 
+	JGDebugTask7_1();
 	/*向等待队列中增加新的作业*/
 	newnode = (struct waitqueue*)malloc(sizeof(struct waitqueue));
 	newnode->next =NULL;
@@ -358,6 +371,7 @@ void do_enq(struct jobinfo *newjob,struct jobcmd enqcmd)
 		p->next =newnode;
 	}else
 		head=newnode;
+	JGDebugTask7_2();
 
 	/*为作业创建进程*/
 	if((pid=fork())<0)
@@ -394,6 +408,7 @@ void do_deq(struct jobcmd deqcmd)
 	#ifdef DEBUG
 		printf("deq jid %d\n",deqid);
 	#endif
+	JGDebugTask7_3();
 
 	/*current jodid==deqid,终止当前作业*/
 	if (current && current->job->jid ==deqid){
@@ -433,6 +448,7 @@ void do_deq(struct jobcmd deqcmd)
 			select=NULL;
 		}
 	}
+	JGDebugTask7_4();
 }
 
 void do_stat(struct jobcmd statcmd)
