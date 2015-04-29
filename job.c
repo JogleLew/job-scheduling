@@ -85,6 +85,43 @@ void JGDebugTask3_7()
 	#endif
 }
 
+void JGDebugTask6_1(struct waitqueue *p)
+{
+	struct waitqueue *current;
+	struct jobinfo *currentJob;
+	#ifdef DEBUG
+		printf("Before update wait queue:\n");
+		current = p;
+		while (current != NULL){
+			currentJob = current->job;
+			printf("jid: %d pid: %d defpri: %d curpri: %d ", 
+				currentJob->jid, currentJob->pid, currentJob->defpri, currentJob->curpri);
+			printf("ownerid: %d waittime: %d runtime: %d jobstate: %d\n", 
+				currentJob->ownerid, currentJob->wait_time, currentJob->run_time, currentJob->state);
+			current = current->next;
+		}
+	#endif
+}
+
+void JGDebugTask6_2(struct waitqueue *p)
+{
+	struct waitqueue *current;
+	struct jobinfo *currentJob;
+	#ifdef DEBUG
+		printf("After update wait queue:\n");
+		current = p;
+		while (current != NULL){
+			currentJob = current->job;
+			printf("jid: %d pid: %d defpri: %d curpri: %d ", 
+				currentJob->jid, currentJob->pid, currentJob->defpri, currentJob->curpri);
+			printf("ownerid: %d waittime: %d runtime: %d jobstate: %d\n", 
+				currentJob->ownerid, currentJob->wait_time, currentJob->run_time, currentJob->state);
+			current = current->next;
+		}
+		printf("(jobstate: READY = 0, RUNNING = 1, DONE = 2)\n");
+	#endif
+}
+
 /* 调度程序 */
 void scheduler()
 {
@@ -146,6 +183,7 @@ void updateall()
 	if(current)
 		current->job->run_time += 1; /* 加1代表1000ms */
 
+	JGDebugTask6_1(head);
 	/* 更新作业等待时间及优先级 */
 	for(p = head; p != NULL; p = p->next){
 		p->job->wait_time += 1000;
@@ -154,6 +192,7 @@ void updateall()
 			p->job->wait_time = 0;
 		}
 	}
+	JGDebugTask6_2(head);
 }
 
 struct waitqueue* jobselect()
