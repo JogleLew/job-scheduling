@@ -172,6 +172,14 @@ void JGDebugTask9_2()
 	#endif
 }
 
+void JGDebugTask10()
+{
+	#ifdef DEBUG
+		printf("SIGCHLD Received!\n");
+		do_stat(JGNullcmd);
+	#endif
+}
+
 /* 调度程序 */
 void scheduler()
 {
@@ -352,6 +360,7 @@ void sig_handler(int sig,siginfo_t *info,void *notused)
 			}else if (WIFSTOPPED(status)){
 				printf("child stopped, signal number = %d\n",WSTOPSIG(status));
 			}
+			JGDebugTask10();
 			return;
 		default:
 			return;
