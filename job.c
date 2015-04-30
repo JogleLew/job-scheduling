@@ -156,6 +156,22 @@ void JGDebugTask8(struct waitqueue *select)
 	#endif
 }
 
+void JGDebugTask9_1()
+{
+	#ifdef DEBUG
+		printf("Before jobswitch:\n");
+		do_stat(JGNullcmd);
+	#endif
+}
+
+void JGDebugTask9_2()
+{
+	#ifdef DEBUG
+		printf("After jobswitch:\n");
+		do_stat(JGNullcmd);
+	#endif
+}
+
 /* 调度程序 */
 void scheduler()
 {
@@ -257,6 +273,7 @@ void jobswitch()
 	struct waitqueue *p;
 	int i;
 
+	JGDebugTask9_1();
 	if(current && current->job->state == DONE){ /* 当前作业完成 */
 		/* 作业完成，删除它 */
 		for(i = 0;(current->job->cmdarg)[i] != NULL; i++){
@@ -271,9 +288,10 @@ void jobswitch()
 		current = NULL;
 	}
 
-	if(next == NULL && current == NULL) /* 没有作业要运行 */
-
+	if(next == NULL && current == NULL){ /* 没有作业要运行 */
+		JGDebugTask9_2();
 		return;
+	}
 	else if (next != NULL && current == NULL){ /* 开始新的作业 */
 
 		printf("begin start new job\n");
@@ -281,6 +299,7 @@ void jobswitch()
 		next = NULL;
 		current->job->state = RUNNING;
 		kill(current->job->pid,SIGCONT);
+		JGDebugTask9_2();
 		return;
 	}
 	else if (next != NULL && current != NULL){ /* 切换作业 */
@@ -303,8 +322,10 @@ void jobswitch()
 		current->job->state = RUNNING;
 		current->job->wait_time = 0;
 		kill(current->job->pid,SIGCONT);
+		JGDebugTask9_2();
 		return;
 	}else{ /* next == NULL且current != NULL，不切换 */
+		JGDebugTask9_2();
 		return;
 	}
 }
