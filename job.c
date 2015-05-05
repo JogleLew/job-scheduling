@@ -15,8 +15,14 @@ int siginfo=1;
 int fifo;
 int globalfd;
 
-struct waitqueue *head=NULL;
+struct waitqueue *head=NULL,*head2=NULL,*head3=NULL;
 struct waitqueue *next=NULL,*current =NULL;
+int job_identifier=0,prev_identifier=0;
+struct timeval interval;
+struct itimerval new,old;
+struct stat statbuf;
+struct sigaction newact,oldact1,oldact2;
+
 
 /* 调度程序 */
 void scheduler()
@@ -67,15 +73,27 @@ int allocjid()
 void updateall()
 {
 	struct waitqueue *p;
+	int tmp;
 
 	/* 更新作业运行时间 */
 	if(current)
-		current->job->run_time += 1; /* 加1代表1000ms */
+		if (job_identifier==0)
+			current->job->run_time += 1;
+		else if (job_identifier==1)
+			current->job->run_time += 3;
+		else
+			current->job->run_time += 5;
+	if (job_identifier==0)
+		tmp=1000;
+	else if (job_identifier==1)
+		tmp=3000;
+	else
+		tmp=5000;	
 
 	/* 更新作业等待时间及优先级 */
 	for(p = head; p != NULL; p = p->next){
-		p->job->wait_time += 1000;
-		if(p->job->wait_time >= 5000 && p->job->curpri < 3){
+		p->job->wait_time += tmp;
+		if(p->job->wait_time >= 10000 && p->job->curpri < 3){
 			p->job->curpri++;
 			p->job->wait_time = 0;
 		}
@@ -97,9 +115,38 @@ struct waitqueue* jobselect()
 				selectprev = prev;
 				highest = p->job->curpri;
 			}
+			printf("found in premium queue");
+			prev_identifier=job_identifier;
+			job_identifier=0;
+			selectprev->next = select->next;//delete select from the queue
+			if (select == selectprev)//the last one deleted from queue, thus end of the queue
+				head = NULL;
+	}else if (head2){
+		for(prev = head2, p = head2; p != NULL; prev = p,p = p->next)
+			if(p->job->curpri > highest){
+				select = p;
+				selectprev = prev;
+				highest = p->job->curpri;
+			}
+			printf("found in subqueue");
+			prev_identifier=job_identifier;
+			job_identifier=1;
 			selectprev->next = select->next;
 			if (select == selectprev)
-				head = NULL;
+				head2 = NULL;
+	}else if (head3){
+		for(prev = head3, p = head3; p != NULL; prev = p,p = p->next)
+			if(p->job->curpri > highest){
+				select = p;
+				selectprev = prev;
+				highest = p->job->curpri;
+			}
+			printf("found in minous queue");
+			prev_identifier=job_identifier;
+			job_identifier=2;
+			selectprev->next = select->next;
+			if (select == selectprev)
+				head3 = NULL;
 	}
 	return select;
 }
@@ -108,6 +155,19 @@ void jobswitch()
 {
 	struct waitqueue *p;
 	int i;
+
+	/* set up new time interval */
+	if (job_identifier==0)
+		interval.tv_sec=1;
+	else if (job_identifier==1)
+		interval.tv_sec=3;
+	else
+		interval.tv_sec=5;
+	interval.tv_usec=0;
+
+	new.it_interval=interval;
+	new.it_value=interval;
+	setitimer(ITIMER_VIRTUAL,&new,&old);
 
 	if(current && current->job->state == DONE){ /* 当前作业完成 */
 		/* 作业完成，删除它 */
@@ -123,9 +183,10 @@ void jobswitch()
 		current = NULL;
 	}
 
-	if(next == NULL && current == NULL) /* 没有作业要运行 */
-
+	if(next == NULL && current == NULL){ /* 没有作业要运行 */
+		printf("mission all over\n");
 		return;
+	}
 	else if (next != NULL && current == NULL){ /* 开始新的作业 */
 
 		printf("begin start new job\n");
@@ -144,12 +205,27 @@ void jobswitch()
 		current->job->state = READY;
 
 		/* 放回等待队列 */
-		if(head){
-			for(p = head; p->next != NULL; p = p->next);
-			p->next = current;
-		}else{
-			head = current;
-		}
+		if (prev_identifier==0)
+			if(head2){
+				for(p = head2; p->next != NULL; p = p->next);
+				p->next = current;
+			}else{
+				head2 = current;
+			}
+		else if (prev_identifier==1)
+			if(head3){
+				for(p = head3; p->next != NULL; p = p->next);
+				p->next = current;
+			}else{
+				head3 = current;
+			}
+		else
+			if(head3){
+				for(p = head3; p->next != NULL; p = p->next);
+				p->next = current;
+			}else{
+				head3 = current;
+			}
 		current = next;
 		next = NULL;
 		current->job->state = RUNNING;
@@ -366,11 +442,6 @@ void do_stat(struct jobcmd statcmd)
 
 int main()
 {
-	struct timeval interval;
-	struct itimerval new,old;
-	struct stat statbuf;
-	struct sigaction newact,oldact1,oldact2;
-
 	if(stat("/tmp/server",&statbuf)==0){
 		/* 如果FIFO文件存在,删掉 */
 		if(remove("/tmp/server")<0)
