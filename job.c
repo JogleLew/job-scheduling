@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <time.h>
 #include "job.h"
+#define DEBUG
 
 int jobid=0;
 int siginfo=1;
@@ -16,6 +17,8 @@ int fifo;
 int globalfd;
 
 struct waitqueue *head=NULL,*head2=NULL,*head3=NULL;
+struct jobcmd JGNullcmd;
+
 struct waitqueue *next=NULL,*current =NULL;
 int job_identifier=0,prev_identifier=0;
 struct timeval interval;
@@ -24,35 +27,200 @@ struct stat statbuf;
 struct sigaction newact,oldact1,oldact2;
 
 
+void JGsetZero(struct jobcmd *p, int len)
+{
+	memset(p, 0, len);
+}
+
+void JGDebugTask1()
+{
+	#ifdef DEBUG
+		printf("DEBUG IS OPEN!\n");
+	#endif
+}
+
+void JGDebugTask2()
+{
+	#ifdef DEBUG
+		printf("SIGVTALRM Received!\n");
+	#endif	
+}
+
+void JGDebugTask3_1()
+{
+	printf("Reading whether other process send command!\n");
+}
+
+void JGDebugTask3_2()
+{
+	#ifdef DEBUG
+		printf("Update jobs in wait queue!\n");
+	#endif
+}
+
+void JGDebugTask3_3()
+{
+	#ifdef DEBUG
+		printf("Execute enq!\n");
+	#endif
+}
+
+void JGDebugTask3_4()
+{
+	#ifdef DEBUG
+		printf("Execute deq!\n");
+	#endif
+}
+
+void JGDebugTask3_5()
+{
+	#ifdef DEBUG
+		printf("Execute stat!\n");
+	#endif
+}
+
+void JGDebugTask3_6()
+{
+	#ifdef DEBUG
+		printf("Select which job to run next!\n");
+	#endif
+}
+
+void JGDebugTask3_7()
+{
+	#ifdef DEBUG
+		printf("Switch to the next job!\n");
+	#endif
+}
+
+void JGDebugTask6_1()
+{
+	#ifdef DEBUG
+		printf("Before update wait queue:\n");
+		do_stat(JGNullcmd);
+	#endif
+}
+
+void JGDebugTask6_2()
+{
+	#ifdef DEBUG
+		printf("After update wait queue:\n");
+		do_stat(JGNullcmd);
+	#endif
+}
+
+void JGDebugTask7_1()
+{
+	#ifdef DEBUG
+		printf("Before enq:\n");
+		do_stat(JGNullcmd);
+	#endif
+}
+
+void JGDebugTask7_2()
+{
+	#ifdef DEBUG
+		printf("After enq:\n");
+		do_stat(JGNullcmd);
+	#endif
+}
+
+void JGDebugTask7_3()
+{
+	#ifdef DEBUG
+		printf("Before deq:\n");
+		do_stat(JGNullcmd);
+	#endif
+}
+
+void JGDebugTask7_4()
+{
+	#ifdef DEBUG
+		printf("After deq:\n");
+		do_stat(JGNullcmd);
+	#endif
+}
+
+void JGDebugTask8(struct waitqueue *select)
+{
+	char timebuf[BUFLEN];
+	#ifdef DEBUG
+		printf("Job selected:\n");
+		if (select == NULL){
+			printf("NULL\n");
+			return;
+		}
+		printf("JOBID\tPID\tOWNER\tRUNTIME\tWAITTIME\tCREATTIME\t\tSTATE\n");
+		strcpy(timebuf,ctime(&(select->job->create_time)));
+		timebuf[strlen(timebuf)-1]='\0';
+		printf("%d\t%d\t%d\t%d\t%d\t%s\t\n",
+			select->job->jid,
+			select->job->pid,
+			select->job->ownerid,
+			select->job->run_time,
+			select->job->wait_time,
+			timebuf);
+	#endif
+}
+
+void JGDebugTask9_1()
+{
+	#ifdef DEBUG
+		printf("Before jobswitch:\n");
+		do_stat(JGNullcmd);
+	#endif
+}
+
+void JGDebugTask9_2()
+{
+	#ifdef DEBUG
+		printf("After jobswitch:\n");
+		do_stat(JGNullcmd);
+	#endif
+}
+
+void JGDebugTask10()
+{
+	#ifdef DEBUG
+		printf("SIGCHLD Received!\n");
+		do_stat(JGNullcmd);
+	#endif
+}
+
 /* 调度程序 */
 void scheduler()
 {
 	struct jobinfo *newjob=NULL;
 	struct jobcmd cmd;
 	int  count = 0;
-	bzero(&cmd,DATALEN);
+	/*bzero(&cmd,DATALEN);*/ //JG: bzero is an old expression.
+	JGsetZero(&cmd,DATALEN); //JG: instead of bzero
 	if((count=read(fifo,&cmd,DATALEN))<0)
 		error_sys("read fifo failed");
-#ifdef DEBUG
-
-	if(count){
-		printf("cmd cmdtype\t%d\ncmd defpri\t%d\ncmd data\t%s\n",cmd.type,cmd.defpri,cmd.data);
-	}
-	else
-		printf("no data read\n");
-#endif
+	#ifdef DEBUG
+		JGDebugTask3_1();
+		if(count){
+			printf("cmd cmdtype\t%d\ncmd defpri\t%d\ncmd data\t%s\n",cmd.type,cmd.defpri,cmd.data);
+		}
+		else
+			printf("no data read\n");
+	#endif
 
 	/* 更新等待队列中的作业 */
+	JGDebugTask3_2();
 	updateall();
 
 	switch(cmd.type){
 	case ENQ:
+		JGDebugTask3_3();
 		do_enq(newjob,cmd);
 		break;
 	case DEQ:
+		JGDebugTask3_4();
 		do_deq(cmd);
 		break;
 	case STAT:
+		JGDebugTask3_5();
 		do_stat(cmd);
 		break;
 	default:
@@ -60,10 +228,12 @@ void scheduler()
 	}
 
 	/* 选择高优先级作业 */
+	JGDebugTask3_6();
 	next=jobselect();
 	if (next!=NULL)
 		printf("%d\n",next->job->pid);
 	/* 作业切换 */
+	JGDebugTask3_7();
 	jobswitch();
 }
 
@@ -92,6 +262,7 @@ void updateall()
 	else
 		tmp=5000;	
 
+	JGDebugTask6_1();
 	/* 更新作业等待时间及优先级 */
 	for(p = head; p != NULL; p = p->next){
 		p->job->wait_time += tmp;
@@ -100,6 +271,7 @@ void updateall()
 			p->job->wait_time = 0;
 		}
 	}
+	JGDebugTask6_2();
 }
 
 struct waitqueue* jobselect()
@@ -150,6 +322,7 @@ struct waitqueue* jobselect()
 			if (select == selectprev)
 				head3 = NULL;
 	}
+	JGDebugTask8(select);
 	return select;
 }
 
@@ -171,6 +344,7 @@ void jobswitch()
 	new.it_value=interval;
 	setitimer(ITIMER_VIRTUAL,&new,&old);
 
+	JGDebugTask9_1();
 	if(current && current->job->state == DONE){ /* 当前作业完成 */
 		/* 作业完成，删除它 */
 		for(i = 0;(current->job->cmdarg)[i] != NULL; i++){
@@ -184,8 +358,10 @@ void jobswitch()
 
 		current = NULL;
 	}
+
 	if(next == NULL && current == NULL){ /* 没有作业要运行 */
 		printf("no mission for now\n");
+		JGDebugTask9_2();
 		return;
 	}
 	else if (next != NULL && current == NULL){ /* 开始新的作业 */
@@ -197,6 +373,7 @@ void jobswitch()
 		current->job->state = RUNNING;
 		current->job->wait_time = 0;
 		kill(current->job->pid,SIGCONT);
+		JGDebugTask9_2();
 		return;
 	}
 	else if (next != NULL && current != NULL){ /* 切换作业 */
@@ -235,8 +412,10 @@ void jobswitch()
 		current->job->wait_time = 0;
 		sleep(1);
 		kill(current->job->pid,SIGCONT);
+		JGDebugTask9_2();
 		return;
 	}else{ /* next == NULL且current != NULL，不切换 */
+		JGDebugTask9_2();
 		return;
 	}
 }
@@ -247,24 +426,26 @@ void sig_handler(int sig,siginfo_t *info,void *notused)
 	int ret;
 
 	switch (sig) {
-case SIGVTALRM: /* 到达计时器所设置的计时间隔 */
-	scheduler();
-	return;
-case SIGCHLD: /* 子进程结束时传送给父进程的信号 */
-	ret = waitpid(-1,&status,WNOHANG);
-	if (ret == 0)
-		return;
-	if(WIFEXITED(status)){
-		current->job->state = DONE;
-		printf("normal termation, exit status = %d\n",WEXITSTATUS(status));
-	}else if (WIFSIGNALED(status)){
-		printf("abnormal termation, signal number = %d\n",WTERMSIG(status));
-	}else if (WIFSTOPPED(status)){
-		printf("child stopped, signal number = %d\n",WSTOPSIG(status));
-	}
-	return;
-	default:
-		return;
+		case SIGVTALRM: /* 到达计时器所设置的计时间隔 */
+			scheduler();
+			JGDebugTask2();
+			return;
+		case SIGCHLD: /* 子进程结束时传送给父进程的信号 */
+			ret = waitpid(-1,&status,WNOHANG);
+			if (ret == 0)
+				return;
+			if(WIFEXITED(status)){
+				current->job->state = DONE;
+				printf("normal termination, exit status = %d\n",WEXITSTATUS(status));
+			}else if (WIFSIGNALED(status)){
+				printf("abnormal termination, signal number = %d\n",WTERMSIG(status));
+			}else if (WIFSTOPPED(status)){
+				printf("child stopped, signal number = %d\n",WSTOPSIG(status));
+			}
+			JGDebugTask10();
+			return;
+		default:
+			return;
 	}
 }
 
@@ -313,6 +494,7 @@ void do_enq(struct jobinfo *newjob,struct jobcmd enqcmd)
 
 #endif
 
+	JGDebugTask7_1();
 	/*向等待队列中增加新的作业*/
 	newnode = (struct waitqueue*)malloc(sizeof(struct waitqueue));
 	newnode->next =NULL;
@@ -326,6 +508,7 @@ void do_enq(struct jobinfo *newjob,struct jobcmd enqcmd)
 		printf("head add\n");
 		head=newnode;
 	}
+	JGDebugTask7_2();
 
 	/*为作业创建进程*/
 	if((pid=fork())<0)
@@ -359,9 +542,10 @@ void do_deq(struct jobcmd deqcmd)
 	struct waitqueue *p,*prev,*select,*selectprev;
 	deqid=atoi(deqcmd.data);
 
-#ifdef DEBUG
-	printf("deq jid %d\n",deqid);
-#endif
+	#ifdef DEBUG
+		printf("deq jid %d\n",deqid);
+	#endif
+	JGDebugTask7_3();
 
 	/*current jodid==deqid,终止当前作业*/
 	if (current && current->job->jid ==deqid){
@@ -423,6 +607,7 @@ void do_deq(struct jobcmd deqcmd)
 			select=NULL;
 		}
 	}
+	JGDebugTask7_4();
 }
 
 void do_stat(struct jobcmd statcmd)
@@ -499,13 +684,19 @@ void do_stat(struct jobcmd statcmd)
 
 int main()
 {
+	struct timeval interval;
+	struct itimerval new,old;
+	struct stat statbuf;
+	struct sigaction newact,oldact1,oldact2;
+
+	JGDebugTask1();
 	if(stat("/tmp/server",&statbuf)==0){
 		/* 如果FIFO文件存在,删掉 */
 		if(remove("/tmp/server")<0)
 			error_sys("remove failed");
 	}
 
-	if(mkfifo("/tmp/server",0666)<0)
+	if(mkfifo("/tmp/server",0666)<0) //0666 means -rw-rw-rw-
 		error_sys("mkfifo failed");
 	/* 在非阻塞模式下打开FIFO */
 	if((fifo=open("/tmp/server",O_RDONLY|O_NONBLOCK))<0)

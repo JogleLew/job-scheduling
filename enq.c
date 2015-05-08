@@ -10,6 +10,17 @@
  * 命令语法格式
  *     enq [-p num] e_file args
  */
+
+void JGDebugTask4(struct jobcmd enqcmd)
+{
+	printf("enqcmd cmdtype\t%d (-1 means enq, -2 means deq, -3 means stat)\n"
+			"enqcmd owner\t%d\n"
+			"enqcmd defpri\t%d\n"
+			"enqcmd data\t%s\n"
+			"enqcmd argnum\t%d\n",
+			enqcmd.type,enqcmd.owner,enqcmd.defpri,enqcmd.data,enqcmd.argnum);
+}
+
 void usage()
 {
 	printf("Usage: enq[-p num] e_file args\n"
@@ -35,14 +46,14 @@ int main(int argc,char *argv[])
 	{
 		while(c=*++argv[0])
 			switch(c)
-		{
-			case 'p':p=atoi(*(++argv));
-			argc--;
-			break;
-			default:
-				printf("Illegal option %c\n",c);
-				return 1;
-		}
+			{
+				case 'p':p=atoi(*(++argv));
+				argc--;
+				break;
+				default:
+					printf("Illegal option %c\n",c);
+					return 1;
+			}
 	}
 
 	if(p<0||p>3)
@@ -66,11 +77,12 @@ int main(int argc,char *argv[])
 	}
 
     #ifdef DEBUG
-		printf("enqcmd cmdtype\t%d\n"
-			"enqcmd owner\t%d\n"
-			"enqcmd defpri\t%d\n"
-			"enqcmd data\t%s\n",
-			enqcmd.type,enqcmd.owner,enqcmd.defpri,enqcmd.data);
+    	JGDebugTask4(enqcmd);
+		// printf("enqcmd cmdtype\t%d\n"
+		// 	"enqcmd owner\t%d\n"
+		// 	"enqcmd defpri\t%d\n"
+		// 	"enqcmd data\t%s\n",
+		// 	enqcmd.type,enqcmd.owner,enqcmd.defpri,enqcmd.data);
 
     #endif 
 
