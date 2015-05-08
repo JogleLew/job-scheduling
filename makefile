@@ -10,4 +10,3 @@ Demo: Demo.c
 	cc -o Demo -g Demo.c
 clean:
 	rm job enq deq stat Demo
-	rm -R Demo.dSYM deq.dSYM enq.dSYM job.dSYM stat.dSYM 
