@@ -22,7 +22,7 @@ enum jobstate{
 };
 
 enum cmdtype{
-    ENQ=-1,DEQ=-2,STAT=-3
+    ENQ=-1,DEQ=-2,STAT=-3 
 };
 struct jobcmd{
     enum cmdtype type;
@@ -45,7 +45,6 @@ struct jobinfo{
     time_t create_time;   /* 作业创建时间 */
     int run_time;         /* 作业运行时间 */
     enum jobstate state;  /* 作业状态 */
-    int fromqueue;        /* 所在队列 */
 };
 
 struct waitqueue{
