@@ -61,6 +61,8 @@ void scheduler()
 
 	/* 选择高优先级作业 */
 	next=jobselect();
+	if (next!=NULL)
+		printf("%d\n",next->job->pid);
 	/* 作业切换 */
 	jobswitch();
 }
@@ -115,11 +117,11 @@ struct waitqueue* jobselect()
 				selectprev = prev;
 				highest = p->job->curpri;
 			}
-			printf("found in premium queue");
+			printf("found in premium queue\n");
 			prev_identifier=job_identifier;
-			job_identifier=0;
+			job_identifier=0;		//job_identifier is zero means that it's found in premium queue
 			selectprev->next = select->next;//delete select from the queue
-			if (select == selectprev)//the last one deleted from queue, thus end of the queue
+			if (select == selectprev)//the last one deleted from queue, thus end of the queue, no need any modifications
 				head = NULL;
 	}else if (head2){
 		for(prev = head2, p = head2; p != NULL; prev = p,p = p->next)
@@ -128,7 +130,7 @@ struct waitqueue* jobselect()
 				selectprev = prev;
 				highest = p->job->curpri;
 			}
-			printf("found in subqueue");
+			printf("found in subqueue\n");
 			prev_identifier=job_identifier;
 			job_identifier=1;
 			selectprev->next = select->next;
@@ -141,7 +143,7 @@ struct waitqueue* jobselect()
 				selectprev = prev;
 				highest = p->job->curpri;
 			}
-			printf("found in minous queue");
+			printf("found in minous queue\n");
 			prev_identifier=job_identifier;
 			job_identifier=2;
 			selectprev->next = select->next;
@@ -154,15 +156,15 @@ struct waitqueue* jobselect()
 void jobswitch()
 {
 	struct waitqueue *p;
-	int i;
+	int i,status;
 
 	/* set up new time interval */
 	if (job_identifier==0)
 		interval.tv_sec=1;
 	else if (job_identifier==1)
-		interval.tv_sec=3;
+		interval.tv_sec=2;
 	else
-		interval.tv_sec=5;
+		interval.tv_sec=4;
 	interval.tv_usec=0;
 
 	new.it_interval=interval;
@@ -182,9 +184,8 @@ void jobswitch()
 
 		current = NULL;
 	}
-
 	if(next == NULL && current == NULL){ /* 没有作业要运行 */
-		printf("mission all over\n");
+		printf("no mission for now\n");
 		return;
 	}
 	else if (next != NULL && current == NULL){ /* 开始新的作业 */
@@ -192,7 +193,9 @@ void jobswitch()
 		printf("begin start new job\n");
 		current = next;
 		next = NULL;
+		sleep(1);
 		current->job->state = RUNNING;
+		current->job->wait_time = 0;
 		kill(current->job->pid,SIGCONT);
 		return;
 	}
@@ -230,6 +233,7 @@ void jobswitch()
 		next = NULL;
 		current->job->state = RUNNING;
 		current->job->wait_time = 0;
+		sleep(1);
 		kill(current->job->pid,SIGCONT);
 		return;
 	}else{ /* next == NULL且current != NULL，不切换 */
@@ -318,8 +322,10 @@ void do_enq(struct jobinfo *newjob,struct jobcmd enqcmd)
 	{
 		for(p=head;p->next != NULL; p=p->next);
 		p->next =newnode;
-	}else
+	}else{
+		printf("head add\n");
 		head=newnode;
+	}
 
 	/*为作业创建进程*/
 	if((pid=fork())<0)
@@ -384,6 +390,28 @@ void do_deq(struct jobcmd deqcmd)
 				if(select==selectprev)
 					head=NULL;
 		}
+		if(head2){
+			for(prev=head2,p=head2;p!=NULL;prev=p,p=p->next)
+				if(p->job->jid==deqid){
+					select=p;
+					selectprev=prev;
+					break;
+				}
+				selectprev->next=select->next;
+				if(select==selectprev)
+					head2=NULL;
+		}
+		if(head3){
+			for(prev=head3,p=head3;p!=NULL;prev=p,p=p->next)
+				if(p->job->jid==deqid){
+					select=p;
+					selectprev=prev;
+					break;
+				}
+				selectprev->next=select->next;
+				if(select==selectprev)
+					head3=NULL;
+		}
 		if(select){
 			for(i=0;(select->job->cmdarg)[i]!=NULL;i++){
 				free((select->job->cmdarg)[i]);
@@ -413,7 +441,7 @@ void do_stat(struct jobcmd statcmd)
 	*/
 
 	/* 打印信息头部 */
-	printf("JOBID\tPID\tOWNER\tRUNTIME\tWAITTIME\tCREATTIME\t\tSTATE\n");
+	printf("JOBID\tPID\tOWNER\tRUNTIME\tWAITTIME\tCREATTIME\t\tSTATE\n");	//current job
 	if(current){
 		strcpy(timebuf,ctime(&(current->job->create_time)));
 		timebuf[strlen(timebuf)-1]='\0';
@@ -425,8 +453,37 @@ void do_stat(struct jobcmd statcmd)
 			current->job->wait_time,
 			timebuf,"RUNNING");
 	}
-
+	
+	printf("jobs in premium queue:\n");
 	for(p=head;p!=NULL;p=p->next){
+		strcpy(timebuf,ctime(&(p->job->create_time)));
+		timebuf[strlen(timebuf)-1]='\0';
+		printf("%d\t%d\t%d\t%d\t%d\t%s\t%s\n",
+			p->job->jid,
+			p->job->pid,
+			p->job->ownerid,
+			p->job->run_time,
+			p->job->wait_time,
+			timebuf,
+			"READY");
+	}
+
+	printf("jobs in subordinate queue:\n");
+	for(p=head2;p!=NULL;p=p->next){
+		strcpy(timebuf,ctime(&(p->job->create_time)));
+		timebuf[strlen(timebuf)-1]='\0';
+		printf("%d\t%d\t%d\t%d\t%d\t%s\t%s\n",
+			p->job->jid,
+			p->job->pid,
+			p->job->ownerid,
+			p->job->run_time,
+			p->job->wait_time,
+			timebuf,
+			"READY");
+	}
+
+	printf("jobs in minous queue:\n");
+	for(p=head3;p!=NULL;p=p->next){
 		strcpy(timebuf,ctime(&(p->job->create_time)));
 		timebuf[strlen(timebuf)-1]='\0';
 		printf("%d\t%d\t%d\t%d\t%d\t%s\t%s\n",
